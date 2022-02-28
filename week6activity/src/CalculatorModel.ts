@@ -4,7 +4,8 @@ enum Operator {
   Plus,
   Minus,
   Mult,
-  Div
+  Div,
+  Sqrt
 }
 
 // abstract class for the state hierarchy. 
@@ -12,6 +13,7 @@ interface ICalculatorState {
   digit(digit: string) : void;
   decimalSeparator() : void;
   binaryOperator(calc: CalculatorModel, operator: Operator) : void;
+  unaryOperator(calc: CalculatorModel, operator: Operator): void;
   equals(calc: CalculatorModel) : void;
   clear(calc: CalculatorModel) : void;
   display() : string
@@ -30,6 +32,14 @@ class EnteringFirstNumberState implements ICalculatorState {
   binaryOperator(calc: CalculatorModel, operator: Operator): void {
     calc.changeState(new EnteringSecondNumberState(this.buffer === '' ? '0' : this.buffer, '', operator));
   }
+
+  unaryOperator(calc: CalculatorModel, operator: Operator): void {
+    if (operator === Operator.Sqrt) {
+      const n = (this.buffer === '' ? 0: parseFloat(this.buffer))
+      n < 0 ? calc.changeState(new ErrorState()) : this.buffer = Math.sqrt(n).toString();
+    }
+  }
+
   equals(): void { /* pressing equals after entering one number has no effect */ }
   clear(): void { this.buffer = '0'; }
   display(){ return this.buffer !== '' ? this.buffer : '0'; }
@@ -105,6 +115,14 @@ class EnteringSecondNumberState implements ICalculatorState {
   }
   display(){ 
     return (this.secondBuffer !== '') ? this.secondBuffer : this.firstBuffer; 
+  }
+
+  unaryOperator(calc: CalculatorModel, operator: Operator): void {
+    switch (operator) {
+      case Operator.Sqrt:
+          const n = (this.secondBuffer === '' ? 0: parseFloat(this.secondBuffer))
+          n < 0 ? calc.changeState(new ErrorState()) : this.secondBuffer = Math.sqrt(n).toString();
+    }
   }
 }
 
@@ -189,12 +207,21 @@ class EnteringThirdNumberState implements ICalculatorState {
   display(){ 
     return (this.thirdBuffer !== '') ? this.thirdBuffer : (this.secondBuffer !== '' ? this.secondBuffer :'0'); 
   }
+
+  unaryOperator(calc: CalculatorModel, operator: Operator): void {
+    switch (operator) {
+      case Operator.Sqrt:
+        const n = (this.thirdBuffer === '' ? 0: parseFloat(this.thirdBuffer))
+        n < 0 ? calc.changeState(new ErrorState()) : this.thirdBuffer = Math.sqrt(n).toString();
+    }
+  }
 }
 // in the ErrorState, pressing "C" will reset the calculator to its original state; other keys have no effect
 class ErrorState implements ICalculatorState {
   digit(digit: string): void { /* nothing */ }
   decimalSeparator(): void { /* nothing */ }
   binaryOperator(calc: CalculatorModel, operator: Operator): void { /* nothing */ }
+  unaryOperator(calc: CalculatorModel, operator: Operator): void { /* nothing */ }
   equals(): void { /* nothing */ }
   clear(calc: CalculatorModel): void { calc.changeState(new EnteringFirstNumberState('0')); }
   display(){ return 'ERR'; }
@@ -228,6 +255,7 @@ export class CalculatorModel {
   public pressMinus() : void { this.state.binaryOperator(this, Operator.Minus); }
   public pressMult() : void { this.state.binaryOperator(this, Operator.Mult); }
   public pressDiv() : void { this.state.binaryOperator(this, Operator.Div); }
+  public pressSqrt() : void { this.state.unaryOperator(this, Operator.Sqrt); }
   
   // returns the contents of the calculator's display
   public display() : string { return this.state.display(); }
